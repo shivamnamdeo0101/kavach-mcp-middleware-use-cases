@@ -1,24 +1,43 @@
 """
-Simple Demo Application using Kavach MCP Security Middleware
-
-This example demonstrates how to use Kavach to detect and block malicious tool calls
-in a Model Context Protocol (MCP) environment.
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    KAVACH MCP - BASIC SECURITY DEMO                           ║
+║                                                                                ║
+║  WHAT: Test Kavach middleware against 6 common attack scenarios               ║
+║  WHY:  See how Kavach blocks malicious tool calls                             ║
+║  HOW:  KavachMiddleware scans each call for attack patterns                   ║
+║                                                                                ║
+║  ATTACKS BLOCKED:                                                              ║
+║  1. Prompt Injection     - "ignore previous instructions"                     ║
+║  2. Secret Leakage       - AWS keys (AKIA...), OpenAI (sk-...)                ║
+║  3. PII Exposure         - Phone numbers, credit cards (10+ digits)           ║
+║  4. SQL Injection        - "'; DROP TABLE users;--"                           ║
+║  5. Path Traversal       - "../../etc/passwd"                                 ║
+║  6. Non-strict Mode      - Reports violations but allows execution            ║
+║                                                                                ║
+║  ARCHITECTURE:                                                                 ║
+║  Tool Call → Kavach Middleware → Pattern Scan → Allow/Block → Result         ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
 """
 
 from kavach import KavachMiddleware
 from typing import Dict, Any
 
 def main():
+    """Main demo function - runs 6 security test cases"""
     print("=" * 70)
     print("Kavach MCP Security Middleware - Demo Application")
     print("=" * 70)
     print()
     
-    # Initialize middleware with strict mode enabled
-    # Strict mode = blocks any tool calls with violations
+    # INIT: Create middleware instance with strict=True
+    # strict=True means: ANY violation detected → BLOCK the call
+    # This is recommended for production (database, file ops, AWS, system commands)
     middleware = KavachMiddleware(strict=True)
     
-    # Test Case 1: Normal, Safe Tool Call
+    # TEST 1: SAFE OPERATION ✅
+    # This is a normal, legitimate database query with no malicious patterns
+    # Expected: ALLOWED (no attack detected)
     print("Test 1: Safe Tool Call")
     print("-" * 70)
     safe_call = {
@@ -31,7 +50,10 @@ def main():
     print(f"Result: {result}")
     print()
     
-    # Test Case 2: Prompt Injection Attack
+    # TEST 2: PROMPT INJECTION ATTACK ❌
+    # Attacker tries to override the system with "ignore previous instructions"
+    # This is a classic LLM jailbreak attempt
+    # Expected: BLOCKED (strict mode + prompt-injection pattern detected)
     print("Test 2: Prompt Injection Attack (Should be BLOCKED)")
     print("-" * 70)
     injection_call = {
@@ -43,7 +65,10 @@ def main():
     print(f"Result: {result}")
     print()
     
-    # Test Case 3: AWS API Key Exposure
+    # TEST 3: AWS CREDENTIAL LEAKAGE ❌
+    # Attacker tries to pass an AWS access key (AKIA...) as part of a tool call
+    # This would expose sensitive credentials if not caught
+    # Expected: BLOCKED (secret-leak pattern: AKIA* = AWS key)
     print("Test 3: Secret Leakage - AWS Key (Should be BLOCKED)")
     print("-" * 70)
     aws_key_call = {
@@ -57,7 +82,10 @@ def main():
     print(f"Result: {result}")
     print()
     
-    # Test Case 4: PII (Personal Identifiable Information)
+    # TEST 4: PII (PERSONAL IDENTIFIABLE INFORMATION) ❌
+    # Attacker tries to pass a phone number (10 digit sequence)
+    # Kavach detects patterns matching phone numbers/credit cards
+    # Expected: BLOCKED (pii pattern: 10-16 consecutive digits)
     print("Test 4: PII Detection - 10-digit Sequence (Should be BLOCKED)")
     print("-" * 70)
     pii_call = {
@@ -70,7 +98,9 @@ def main():
     print(f"Result: {result}")
     print()
     
-    # Test Case 5: OpenAI API Key
+    # TEST 5: OPENAI API KEY LEAKAGE ❌
+    # Attacker tries to pass an OpenAI API key (sk-...)
+    # Expected: BLOCKED (secret-leak pattern: sk-* = OpenAI key)
     print("Test 5: Secret Leakage - OpenAI Key (Should be BLOCKED)")
     print("-" * 70)
     openai_call = {
@@ -83,7 +113,11 @@ def main():
     print(f"Result: {result}")
     print()
     
-    # Test Case 6: Non-strict Mode (Allows violations but reports them)
+    # TEST 6: LENIENT MODE (Report but Allow) 🔓
+    # Same injection attack, but with strict=False
+    # Lenient mode = log violations but don't block execution
+    # Use case: Development, testing, or audit mode where you want to see issues without breaking
+    # Expected: ALLOWED but violations reported
     print("Test 6: Same Injection Call with strict=False (Should be ALLOWED)")
     print("-" * 70)
     middleware_lenient = KavachMiddleware(strict=False)
