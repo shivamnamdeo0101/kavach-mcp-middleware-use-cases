@@ -1,4 +1,4 @@
-# Kavach MCP Security Middleware - Simple Project
+# Kavach MCP Security Middleware
 
 A demonstration project for using **Kavach**, a security middleware for Model Context Protocol (MCP) that detects and blocks malicious tool calls.
 
