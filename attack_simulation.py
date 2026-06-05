@@ -51,6 +51,7 @@
 
 from kavach import KavachMiddleware
 from kavach.types import Rule
+from kavach.middleware import SecurityException
 import re
 from typing import Dict, Any
 
@@ -67,15 +68,18 @@ def test_attack(name: str, tool_name: str, attack_payload: Dict[str, Any]) -> No
     
     # Add tool name to the payload for analysis
     payload = {"tool": tool_name, **attack_payload}
-    result = middleware.process(payload)
-    
-    if result.get('allowed'):
+    try:
+        result = middleware.process(payload)
         print(f"\n✅ ALLOWED (No threats detected)")
-    else:
+    except SecurityException as e:
         print(f"\n🚫 BLOCKED (Threat detected)")
-        violations = result.get('violations', [])
-        for v in violations:
-            print(f"   • {v.get('name')} - Severity: {v.get('severity')}")
+        error_msg = str(e)
+        if "Violations:" in error_msg:
+            violations_str = error_msg.split("Violations: ")[1]
+            import ast
+            violations = ast.literal_eval(violations_str)
+            for v in violations:
+                print(f"   • {v.get('name')} - Severity: {v.get('severity')}")
 
 def main():
     print("\n" + "="*80)

@@ -27,6 +27,7 @@
 import re
 from kavach import KavachMiddleware
 from kavach.types import Rule
+from kavach.middleware import SecurityException
 from typing import List
 
 def create_custom_middleware() -> KavachMiddleware:
@@ -159,18 +160,25 @@ def main():
     for i, test in enumerate(test_cases, 1):
         print(f"Test {i}: {test['name']}")
         print("-" * 80)
-        result = middleware.process(test['call'])
+        status = "✅ ALLOWED"
+        violation_details = None
+        try:
+            result = middleware.process(test['call'])
+        except SecurityException as e:
+            status = "❌ BLOCKED"
+            error_msg = str(e)
+            if "Violations:" in error_msg:
+                violations_str = error_msg.split("Violations: ")[1]
+                import ast
+                violation_details = ast.literal_eval(violations_str)
         
-        status = "✅ ALLOWED" if result.get('allowed') else "❌ BLOCKED"
         print(f"Expected: {test['expected']}")
         print(f"Actual:   {status}")
         
-        if not result.get('allowed'):
-            violations = result.get('violations', [])
-            if violations:
-                print(f"Violations:")
-                for violation in violations:
-                    print(f"  - {violation.get('name')} (Severity: {violation.get('severity')})")
+        if violation_details:
+            print(f"Violations:")
+            for violation in violation_details:
+                print(f"  - {violation.get('name')} (Severity: {violation.get('severity')})")
         
         print()
     
